@@ -12,7 +12,6 @@ from torch import nn
 from config import (
     ACCURACY_PLOT_PATH,
     CONFUSION_MATRIX_PATH,
-    DATA_DIR,
     HISTORY_CSV_PATH,
     LOSS_PLOT_PATH,
     OUTPUT_DIR,
@@ -20,7 +19,6 @@ from config import (
 
 
 def ensure_directories() -> None:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 

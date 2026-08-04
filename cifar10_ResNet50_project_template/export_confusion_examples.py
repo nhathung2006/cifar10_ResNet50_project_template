@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import torch
 from PIL import Image
 from torch.utils.data import DataLoader
@@ -32,9 +30,11 @@ EXAMPLES_PER_PAIR = 9
 
 def main() -> None:
     device = get_device()
-    test_dataset = datasets.ImageFolder(
-        root=DATA_DIR / "test",
+    test_dataset = datasets.CIFAR10(
+        root=DATA_DIR,
+        train=False,
         transform=get_eval_transform(),
+        download=False,
     )
     test_loader = DataLoader(
         test_dataset,
@@ -83,15 +83,13 @@ def main() -> None:
                     sample_index += 1
                     continue
 
-                source_path = Path(test_dataset.samples[sample_index][0])
                 output_dir = OUTPUT_DIR / "confusion_examples" / (
                     f"{true_name}_{predicted_name}"
                 )
                 output_dir.mkdir(parents=True, exist_ok=True)
                 output_path = output_dir / f"{pair_counts[pair] + 1:02d}.png"
 
-                with Image.open(source_path) as image:
-                    image.convert("RGB").resize((32, 32)).save(output_path)
+                Image.fromarray(test_dataset.data[sample_index]).save(output_path)
 
                 pair_counts[pair] += 1
                 sample_index += 1
