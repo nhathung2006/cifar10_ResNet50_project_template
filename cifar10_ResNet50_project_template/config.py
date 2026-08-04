@@ -3,8 +3,15 @@ from pathlib import Path
 # Đường dẫn
 PROJECT_ROOT = Path(__file__).resolve().parent
 DATA_DIR = Path("/kaggle/input/datasets/alifrahman/cifar10-python-dataset")
+LOCAL_SPLIT_PATH = PROJECT_ROOT / "splits" / "cifar10_seed42_val10.npz"
+KAGGLE_SPLIT_PATH = Path(
+    "/kaggle/input/cifar10-fixed-split-v1/cifar10_seed42_val10.npz"
+)
+SPLIT_PATH = (
+    KAGGLE_SPLIT_PATH if KAGGLE_SPLIT_PATH.exists() else LOCAL_SPLIT_PATH
+)
 OUTPUT_DIR = PROJECT_ROOT / "outputs"
-CHECKPOINT_PATH = OUTPUT_DIR / "best_resnet50_cifar10.pt"
+CHECKPOINT_PATH = OUTPUT_DIR / "best_vgg16_cifar10.pt"
 HISTORY_CSV_PATH = OUTPUT_DIR / "training_history.csv"
 LOSS_PLOT_PATH = OUTPUT_DIR / "loss_history.png"
 ACCURACY_PLOT_PATH = OUTPUT_DIR / "accuracy_history.png"
@@ -48,3 +55,6 @@ MIN_LEARNING_RATE = 1e-6
 
 # Dừng sớm khi validation loss không cải thiện
 EARLY_STOPPING_PATIENCE = 17
+
+
+
