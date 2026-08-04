@@ -11,11 +11,22 @@ from config import (
     BATCH_SIZE,
     CIFAR10_MEAN,
     CIFAR10_STD,
+    CLASS_NAMES,
     DATA_DIR,
     NUM_WORKERS,
     SEED,
     SPLIT_PATH,
+    validate_data_dir,
 )
+
+
+def _validate_class_mapping(dataset: datasets.CIFAR10, split_name: str) -> None:
+    expected_classes = list(CLASS_NAMES)
+    if dataset.classes != expected_classes:
+        raise ValueError(
+            f"Class mapping của {split_name} không đúng: "
+            f"{dataset.classes}; mong đợi {expected_classes}."
+        )
 
 
 def get_train_transform() -> transforms.Compose:
@@ -64,6 +75,10 @@ def _read_split(dataset: datasets.CIFAR10) -> tuple[list[int], list[int]]:
             val_indices = np.asarray(split["val_indices"])
     except (BadZipFile, KeyError, OSError, ValueError) as error:
         raise ValueError(f"File split không hợp lệ: {SPLIT_PATH}") from error
+
+    if len(dataset) != 50_000:
+        raise ValueError(f"CIFAR-10 train phải có 50.000 ảnh, nhận được {len(dataset)}.")
+    _validate_class_mapping(dataset, "train")
 
     if train_indices.ndim != 1 or val_indices.ndim != 1:
         raise ValueError("train_indices và val_indices phải là mảng 1 chiều.")
@@ -117,6 +132,7 @@ def _loader_options(device: torch.device) -> dict:
 def create_dataloaders(
     device: torch.device,
 ) -> Tuple[DataLoader, DataLoader, DataLoader]:
+    validate_data_dir()
     split_dataset = datasets.CIFAR10(
         root=DATA_DIR,
         train=True,
@@ -145,6 +161,7 @@ def create_dataloaders(
     )
     if len(test_dataset) != 10_000:
         raise ValueError(f"CIFAR-10 test phải có 10.000 ảnh, nhận được {len(test_dataset)}.")
+    _validate_class_mapping(test_dataset, "test")
 
     train_dataset = Subset(full_train_dataset, train_indices)
     val_dataset = Subset(full_val_dataset, val_indices)
@@ -160,6 +177,7 @@ def create_dataloaders(
 
 
 def create_test_loader(device: torch.device) -> DataLoader:
+    validate_data_dir()
     test_dataset = datasets.CIFAR10(
         root=DATA_DIR,
         train=False,
@@ -168,6 +186,7 @@ def create_test_loader(device: torch.device) -> DataLoader:
     )
     if len(test_dataset) != 10_000:
         raise ValueError(f"CIFAR-10 test phải có 10.000 ảnh, nhận được {len(test_dataset)}.")
+    _validate_class_mapping(test_dataset, "test")
 
     return DataLoader(
         test_dataset,

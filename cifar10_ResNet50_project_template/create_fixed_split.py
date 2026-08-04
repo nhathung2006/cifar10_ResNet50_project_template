@@ -1,7 +1,13 @@
 import numpy as np
 from torchvision.datasets import CIFAR10
 
-from config import DATA_DIR, LOCAL_SPLIT_PATH, SEED, VAL_RATIO
+from config import (
+    DATA_DIR,
+    LOCAL_SPLIT_PATH,
+    SEED,
+    VAL_RATIO,
+    validate_data_dir,
+)
 
 
 def main() -> None:
@@ -9,6 +15,7 @@ def main() -> None:
         print(f"Split đã tồn tại, không ghi đè: {LOCAL_SPLIT_PATH}")
         return
 
+    validate_data_dir()
     dataset = CIFAR10(root=DATA_DIR, train=True, download=False)
     if len(dataset) != 50_000:
         raise ValueError(f"CIFAR-10 train phải có 50.000 ảnh, nhận được {len(dataset)}.")

@@ -11,6 +11,7 @@ from config import (
     NUM_CLASSES,
     NUM_WORKERS,
     OUTPUT_DIR,
+    validate_data_dir,
 )
 from data import get_eval_transform
 from model import RESNET50CIFAR10
@@ -29,6 +30,7 @@ EXAMPLES_PER_PAIR = 9
 
 
 def main() -> None:
+    validate_data_dir()
     device = get_device()
     test_dataset = datasets.CIFAR10(
         root=DATA_DIR,

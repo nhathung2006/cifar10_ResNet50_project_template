@@ -2,14 +2,23 @@ from pathlib import Path
 
 # Đường dẫn
 PROJECT_ROOT = Path(__file__).resolve().parent
-DATA_DIR = Path("/kaggle/input/cifar10-python")
-LOCAL_SPLIT_PATH = PROJECT_ROOT / "splits" / "cifar10_seed42_val10.npz"
+DATA_DIR = Path("/kaggle/input/cifar10-python-dataset")
+
+LOCAL_SPLIT_PATH = (
+    PROJECT_ROOT / "splits" / "cifar10_seed42_val10.npz"
+)
+
 KAGGLE_SPLIT_PATH = Path(
-    "/kaggle/input/cifar10-fixed-split-v1/cifar10_seed42_val10.npz"
+    "/kaggle/input/cifar10-fixed-split-v1/"
+    "cifar10_seed42_val10.npz"
 )
+
 SPLIT_PATH = (
-    KAGGLE_SPLIT_PATH if KAGGLE_SPLIT_PATH.exists() else LOCAL_SPLIT_PATH
+    KAGGLE_SPLIT_PATH
+    if KAGGLE_SPLIT_PATH.is_file()
+    else LOCAL_SPLIT_PATH
 )
+CIFAR10_BATCHES_DIR = DATA_DIR / "cifar-10-batches-py"
 OUTPUT_DIR = PROJECT_ROOT / "outputs"
 CHECKPOINT_PATH = OUTPUT_DIR / "best_vgg16_cifar10.pt"
 HISTORY_CSV_PATH = OUTPUT_DIR / "training_history.csv"
@@ -42,6 +51,16 @@ CLASS_NAMES = (
 # Chuẩn hóa theo cách đơn giản, phổ biến trong tutorial CIFAR-10
 CIFAR10_MEAN = (0.4914, 0.4822, 0.4465)
 CIFAR10_STD = (0.2470, 0.2435, 0.2616)
+
+
+def validate_data_dir() -> None:
+    if not CIFAR10_BATCHES_DIR.is_dir():
+        raise FileNotFoundError(
+            "Không tìm thấy dữ liệu CIFAR-10 trên Kaggle tại: "
+            f"{CIFAR10_BATCHES_DIR}\n"
+            "Hãy Add Input dataset "
+            "cifar-10 python dataset của Alif Rahman."
+        )
 
 # Cấu hình huấn luyện
 EPOCHS = 80
