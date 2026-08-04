@@ -162,7 +162,7 @@ CIFAR10_STD = (
 # ============================================================
 
 EPOCHS = 80
-LEARNING_RATE = 1e-3
+LEARNING_RATE = 0.01
 WEIGHT_DECAY = 1e-4
 
 
