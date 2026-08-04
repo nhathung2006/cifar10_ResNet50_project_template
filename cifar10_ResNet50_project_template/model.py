@@ -1,59 +1,49 @@
 import torch
 from torch import nn
-
+from torchvision.models import resnet50
 
 class RESNET50CIFAR10(nn.Module):
     """
     RESNET50-BN được điều chỉnh cho ảnh CIFAR-10 32 x 32.
+    convolution ban đầu: chuyển kernal 7x7 -> 3x3, stride = 1
+    bỏ maxpooling đầu tiên
     """
 
-    def __init__(
-        self,
-        num_classes: int = 10,
-    ) -> None:
+    def __init__(self, num_classes: int = 10,) -> None:
         super().__init__()
 
-        block_channels = (64, 128, 256, 512, 512)
-        block_layers = (2, 2, 3, 3, 3)
-        layers: list[nn.Module] = []
-        in_channels = 3
+        self.network = resnet50(weights = None)
 
-        for out_channels, num_convolutions in zip(
-            block_channels,
-            block_layers,
-        ):
-            for _ in range(num_convolutions):
-                layers.extend(
-                    [
-                        nn.Conv2d(
-                            in_channels=in_channels,
-                            out_channels=out_channels,
-                            kernel_size=3,
-                            padding=1,
-                        ),
-                        nn.BatchNorm2d(out_channels),
-                        nn.ReLU(inplace=True),
-                    ]
-                )
-                in_channels = out_channels
-
-            layers.append(nn.MaxPool2d(kernel_size=2, stride=2))
-
-        self.features = nn.Sequential(*layers)
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.classifier = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(512, num_classes),
+        self.network.conv1 = nn.Conv2d(
+        in_channels = 3,
+        out_channels = 64,
+        kernel_size = 3,
+        stride = 1,
+        bias = False,
         )
 
+        #không giảm 32x32 xuống 8x8 quá sớm
+        self.network.maxpool = nn.Identity()
+
+        #Thay classifier ImageNet 1000 lớp thành Cifar10
+        in_features = self.network.fc.in_features
+        self.network.fc = nn.Linear(
+            in_features=in_features,
+            out_features=num_classes,
+        )
+
+        # Khởi tạo lại convolution đầu vừa thay
+        nn.init.kaiming_normal_(
+            self.network.conv1.weight,
+            mode= "fan_out",
+            nonlinearity='relu',
+        )
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.features(x)
-        x = self.avgpool(x)
-        return self.classifier(x)
+        return self.network(x)
 
 
 if __name__ == "__main__":
-    model = RESNET50CIFAR10(num_classes=10, )
+    model = RESNET50CIFAR10(num_classes=10)
     sample = torch.randn(8, 3, 32, 32)
     logits = model(sample)
 
