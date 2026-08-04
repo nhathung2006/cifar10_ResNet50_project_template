@@ -37,6 +37,13 @@ DATA_DIR = (
 )
 
 
+def validate_data_dir() -> None:
+    cifar_folder = DATA_DIR / "cifar-10-batches-py"
+
+    if not cifar_folder.is_dir():
+        raise FileNotFoundError(
+            f"Không tìm thấy dữ liệu CIFAR-10 tại: {cifar_folder}"
+        )
 # ============================================================
 # 3. Đường dẫn fixed split
 # ============================================================
