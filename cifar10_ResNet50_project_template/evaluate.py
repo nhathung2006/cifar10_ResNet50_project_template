@@ -8,6 +8,14 @@ from config import (
 )
 from data import create_test_loader
 from engine import evaluate_detailed
+from metrics import (
+    count_parameters,
+    format_vram,
+    peak_vram_mb,
+    reset_peak_vram,
+    start_timer,
+    stop_timer,
+)
 from model import RESNET50CIFAR10
 from utils import (
     ensure_directories,
@@ -29,6 +37,8 @@ def main() -> None:
     model = RESNET50CIFAR10(
         num_classes=NUM_CLASSES,
     ).to(device)
+    total_parameters, trainable_parameters = count_parameters(model)
+    reset_peak_vram(device)
     checkpoint = load_checkpoint(
         path=CHECKPOINT_PATH,
         model=model,
@@ -37,6 +47,7 @@ def main() -> None:
 
     criterion = nn.CrossEntropyLoss()
 
+    inference_start = start_timer(device)
     (
         test_loss,
         test_accuracy,
@@ -50,6 +61,8 @@ def main() -> None:
         device=device,
         num_classes=NUM_CLASSES,
     )
+    inference_time_seconds = stop_timer(inference_start, device)
+    peak_vram = peak_vram_mb(device)
 
     per_class_accuracy: dict[str, float] = {}
 
@@ -57,6 +70,10 @@ def main() -> None:
     print(f"Checkpoint epoch: {checkpoint['epoch']}")
     print(f"Test loss       : {test_loss:.4f}")
     print(f"Test accuracy   : {test_accuracy:.2f}%")
+    print("\n===== THÔNG SỐ TÀI NGUYÊN =====")
+    print(f"1. Parameters      : {total_parameters:,} (trainable: {trainable_parameters:,})")
+    print(f"2. Inference time  : {inference_time_seconds:.3f} giây")
+    print(f"3. PEAK VRAM       : {format_vram(peak_vram)}")
 
     print("\nAccuracy theo từng lớp:")
     for class_index, class_name in enumerate(CLASS_NAMES):
@@ -81,6 +98,10 @@ def main() -> None:
             "checkpoint_epoch": int(checkpoint["epoch"]),
             "test_loss": float(test_loss),
             "test_accuracy": float(test_accuracy),
+            "total_parameters": total_parameters,
+            "trainable_parameters": trainable_parameters,
+            "inference_time_seconds": inference_time_seconds,
+            "peak_vram_mb": peak_vram,
             "per_class_accuracy": per_class_accuracy,
             "confusion_matrix": confusion_matrix.tolist(),
         },

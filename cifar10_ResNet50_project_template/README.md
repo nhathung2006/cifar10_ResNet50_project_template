@@ -87,3 +87,16 @@ Nếu chưa Add Input split dataset, project dùng file local trong `splits/` c�
 Tập train dùng augmentation. Validation và test chỉ dùng `ToTensor` và Normalize CIFAR-10. Test dùng `train=False`, có 10.000 ảnh và `shuffle=False`.
 
 Không chạy huấn luyện nếu chỉ cần tạo fixed split. Checkpoint ResNet-50 giữ nguyên tên đã cấu hình trong `config.py` và tất cả output được ghi vào `/kaggle/working/.../outputs`.
+
+Sau khi `train.py` hoàn tất, phần `THÔNG SỐ TÀI NGUYÊN` in ra:
+
+- Tổng Parameters và số trainable Parameters.
+- Tổng thời gian huấn luyện.
+- Tổng thời gian suy luận trên tập test.
+- PEAK VRAM đã cấp phát bởi PyTorch; CPU/MPS sẽ hiển thị `N/A`.
+
+Các giá trị này cũng được lưu trong `outputs/test_metrics.json`. Có thể chạy bài test kiểm tra model và phần in thông số bằng:
+
+```python
+!python -m unittest discover -s tests -v
+```

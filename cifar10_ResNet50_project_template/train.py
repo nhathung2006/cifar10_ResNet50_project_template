@@ -19,6 +19,14 @@ from config import (
 )
 from data import create_dataloaders
 from engine import evaluate, train_one_epoch
+from metrics import (
+    count_parameters,
+    peak_vram_mb,
+    print_training_metrics,
+    reset_peak_vram,
+    start_timer,
+    stop_timer,
+)
 from model import RESNET50CIFAR10
 from utils import (
     ensure_directories,
@@ -48,6 +56,8 @@ def main() -> None:
     model = RESNET50CIFAR10(
         num_classes=NUM_CLASSES,
     ).to(device)
+    total_parameters, trainable_parameters = count_parameters(model)
+    reset_peak_vram(device)
 
     # CrossEntropyLoss nhận trực tiếp logits, không thêm Softmax trong model.
     criterion = nn.CrossEntropyLoss()
@@ -70,6 +80,7 @@ def main() -> None:
     best_val_loss = float("inf")
     epochs_without_improvement = 0
 
+    training_start = start_timer(device)
     for epoch in range(1, EPOCHS + 1):
         train_loss, train_accuracy = train_one_epoch(
             model=model,
@@ -138,6 +149,8 @@ def main() -> None:
             print("Dừng sớm để hạn chế overfitting.")
             break
 
+    training_time_seconds = stop_timer(training_start, device)
+
     save_history_csv(history)
     plot_history(history)
 
@@ -148,12 +161,15 @@ def main() -> None:
         device=device,
     )
 
+    inference_start = start_timer(device)
     test_loss, test_accuracy = evaluate(
         model=model,
         data_loader=test_loader,
         criterion=criterion,
         device=device,
     )
+    inference_time_seconds = stop_timer(inference_start, device)
+    peak_vram = peak_vram_mb(device)
 
     test_metrics = {
         "best_epoch": int(checkpoint["epoch"]),
@@ -161,6 +177,11 @@ def main() -> None:
         "best_val_accuracy": float(checkpoint["val_accuracy"]),
         "test_loss": float(test_loss),
         "test_accuracy": float(test_accuracy),
+        "total_parameters": total_parameters,
+        "trainable_parameters": trainable_parameters,
+        "training_time_seconds": training_time_seconds,
+        "inference_time_seconds": inference_time_seconds,
+        "peak_vram_mb": peak_vram,
         "classes": list(CLASS_NAMES),
     }
     save_json(TEST_METRICS_PATH, test_metrics)
@@ -169,6 +190,13 @@ def main() -> None:
     print(f"Best epoch : {checkpoint['epoch']}")
     print(f"Test loss  : {test_loss:.4f}")
     print(f"Test acc   : {test_accuracy:.2f}%")
+    print_training_metrics(
+        total_parameters=total_parameters,
+        trainable_parameters=trainable_parameters,
+        training_time_seconds=training_time_seconds,
+        inference_time_seconds=inference_time_seconds,
+        peak_vram=peak_vram,
+    )
     print(f"Checkpoint : {CHECKPOINT_PATH}")
     print("Đã lưu biểu đồ và kết quả trong thư mục outputs/.")
 
