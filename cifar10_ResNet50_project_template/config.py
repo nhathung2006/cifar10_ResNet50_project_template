@@ -1,184 +1,117 @@
 from pathlib import Path
 
 
-# ============================================================
-# 1. Đường dẫn gốc của project
-# ============================================================
-
 PROJECT_ROOT = Path(__file__).resolve().parent
+KAGGLE_DATA_ROOT = Path("/kaggle/input/cat-and-dog")
+LOCAL_DATA_ROOT = PROJECT_ROOT / "data"
+
+SEED = 42
+VAL_RATIO = 0.10
+BATCH_SIZE = 64
+NUM_WORKERS = 2
+
+NUM_CLASSES = 2
+CLASS_NAMES = ("cats", "dogs")
+IMAGE_SIZE = 160
+EVAL_RESIZE_SIZE = 176
+IMAGE_MEAN = (0.485, 0.456, 0.406)
+IMAGE_STD = (0.229, 0.224, 0.225)
+
+MODEL_NAME = "ResNet50-CatDog"
+EPOCHS = 160
+LEARNING_RATE = 0.03
+MOMENTUM = 0.90
+WEIGHT_DECAY = 4e-5
+MIN_LEARNING_RATE = 1e-5
+EARLY_STOPPING_PATIENCE = 15
+
+SPLIT_FILE_NAME = "catdog_seed42_val10.npz"
+LOCAL_SPLIT_PATH = PROJECT_ROOT / "splits" / SPLIT_FILE_NAME
+KAGGLE_WORKING_SPLIT_PATH = Path("/kaggle/working/splits") / SPLIT_FILE_NAME
+
+if Path("/kaggle/working").is_dir():
+    SPLIT_OUTPUT_PATH = KAGGLE_WORKING_SPLIT_PATH
+else:
+    SPLIT_OUTPUT_PATH = LOCAL_SPLIT_PATH
 
 
-# ============================================================
-# 2. Đường dẫn dữ liệu CIFAR-10
-# ============================================================
+def _contains_classes(path: Path) -> bool:
+    return all((path / class_name).is_dir() for class_name in CLASS_NAMES)
 
-# Dataset CIFAR-10 đã Add Input trên Kaggle
-# Bên trong thư mục này phải có:
-# cifar-10-batches-py
-KAGGLE_DATA_DIR = Path(
-    "/kaggle/input/datasets/alifrahman/"
-    "cifar10-python-dataset"
-)
 
-# Đường dẫn dùng khi chạy trên Windows.
-# Cấu trúc yêu cầu:
-# project/
-# └── data/
-#     └── cifar-10-batches-py/
-LOCAL_DATA_DIR = PROJECT_ROOT / "data"
+def _find_split_dir(root: Path, split_name: str) -> Path | None:
+    if not root.is_dir():
+        return None
+    preferred = root / split_name
+    if _contains_classes(preferred):
+        return preferred
+    candidates = sorted(
+        (path for path in root.rglob("*") if path.is_dir() and _contains_classes(path)),
+        key=lambda path: (len(path.parts), str(path)),
+    )
+    return candidates[0] if candidates else None
 
-# Tự động chọn đường dẫn:
-# - Nếu đang chạy trên Kaggle: dùng KAGGLE_DATA_DIR
-# - Nếu chạy trên Windows: dùng LOCAL_DATA_DIR
-DATA_DIR = (
-    KAGGLE_DATA_DIR
-    if KAGGLE_DATA_DIR.exists()
-    else LOCAL_DATA_DIR
-)
+
+def find_dataset_dirs() -> tuple[Path | None, Path | None]:
+    roots = []
+    if KAGGLE_DATA_ROOT.exists():
+        roots.append(KAGGLE_DATA_ROOT)
+    if Path("/kaggle/input").is_dir():
+        roots.append(Path("/kaggle/input"))
+    roots.append(LOCAL_DATA_ROOT)
+
+    for root in roots:
+        train_dir = _find_split_dir(root, "training_set")
+        test_dir = _find_split_dir(root, "test_set")
+        if train_dir is not None and test_dir is not None:
+            return train_dir, test_dir
+    return None, None
+
+
+TRAIN_DATA_DIR, TEST_DATA_DIR = find_dataset_dirs()
+DATA_DIR = TRAIN_DATA_DIR
 
 
 def validate_data_dir() -> None:
-    cifar_folder = DATA_DIR / "cifar-10-batches-py"
-
-    if not cifar_folder.is_dir():
+    train_dir, test_dir = find_dataset_dirs()
+    missing = []
+    if train_dir is None:
+        missing.append("thư mục training_set trực tiếp chứa cats/ và dogs/")
+    if test_dir is None:
+        missing.append("thư mục test_set trực tiếp chứa cats/ và dogs/")
+    if missing:
         raise FileNotFoundError(
-            f"Không tìm thấy dữ liệu CIFAR-10 tại: {cifar_folder}"
+            "Không tìm thấy dữ liệu Cat/Dog. Thiếu: " + "; ".join(missing) + ". "
+            "Hãy Add Input dataset Cat and Dog hoặc đặt dữ liệu vào project/data."
         )
-# ============================================================
-# 3. Đường dẫn fixed split
-# ============================================================
-
-SPLIT_FILE_NAME = "cifar10_seed42_val10.npz"
-
-# File split nằm trong project.
-# create_fixed_split.py sẽ tạo file tại đây.
-LOCAL_SPLIT_PATH = (
-    PROJECT_ROOT
-    / "splits"
-    / SPLIT_FILE_NAME
-)
-
-# Sau khi upload fixed split thành Kaggle Dataset,
-# file sẽ được đọc tại đường dẫn này.
-KAGGLE_SPLIT_PATH = Path(
-    "/kaggle/input/datasets/trannhathung2006/"
-    "cifar10-fixed-split-v1/"
-    "cifar10_seed42_val10.npz"
-)
-
-# Nếu đã Add Input fixed split trên Kaggle thì dùng file Kaggle.
-# Nếu chưa có thì sử dụng file split trong project.
-SPLIT_PATH = (
-    KAGGLE_SPLIT_PATH
-    if KAGGLE_SPLIT_PATH.exists()
-    else LOCAL_SPLIT_PATH
-)
+    print(f"Training dataset: {train_dir}")
+    print(f"Test dataset    : {test_dir}")
 
 
-# ============================================================
-# 4. Đường dẫn kết quả huấn luyện
-# ============================================================
-
-OUTPUT_DIR = PROJECT_ROOT / "outputs"
-
-CHECKPOINT_PATH = (
-    OUTPUT_DIR / "best_resnet50_cifar10.pt"
-)
-
-HISTORY_CSV_PATH = (
-    OUTPUT_DIR / "training_history.csv"
-)
-
-LOSS_PLOT_PATH = (
-    OUTPUT_DIR / "loss_history.png"
-)
-
-ACCURACY_PLOT_PATH = (
-    OUTPUT_DIR / "accuracy_history.png"
-)
-
-TEST_METRICS_PATH = (
-    OUTPUT_DIR / "test_metrics.json"
-)
-
-CONFUSION_MATRIX_PATH = (
-    OUTPUT_DIR / "confusion_matrix.png"
-)
+def find_split_path() -> Path:
+    search_roots = []
+    kaggle_input = Path("/kaggle/input")
+    if kaggle_input.is_dir():
+        search_roots.extend(sorted(kaggle_input.rglob(SPLIT_FILE_NAME)))
+    search_roots.append(LOCAL_SPLIT_PATH)
+    if KAGGLE_WORKING_SPLIT_PATH not in search_roots:
+        search_roots.append(KAGGLE_WORKING_SPLIT_PATH)
+    for path in search_roots:
+        if path.is_file():
+            return path
+    return SPLIT_OUTPUT_PATH
 
 
-# ============================================================
-# 5. Cấu hình dữ liệu
-# ============================================================
+SPLIT_PATH = find_split_path()
 
-# Seed dùng để cố định kết quả chia dữ liệu
-SEED = 42
+if Path("/kaggle/working").is_dir():
+    OUTPUT_DIR = Path("/kaggle/working/catdog_resnet50_outputs")
+else:
+    OUTPUT_DIR = PROJECT_ROOT / "outputs"
 
-# 10% của 50.000 ảnh train được dùng làm validation
-VAL_RATIO = 0.10
-
-BATCH_SIZE = 128
-NUM_WORKERS = 2
-
-
-# ============================================================
-# 6. Cấu hình mô hình
-# ============================================================
-
-NUM_CLASSES = 10
-
-CLASS_NAMES = (
-    "airplane",
-    "automobile",
-    "bird",
-    "cat",
-    "deer",
-    "dog",
-    "frog",
-    "horse",
-    "ship",
-    "truck",
-)
-
-
-# ============================================================
-# 7. Giá trị chuẩn hóa CIFAR-10
-# ============================================================
-
-CIFAR10_MEAN = (
-    0.4914,
-    0.4822,
-    0.4465,
-)
-
-CIFAR10_STD = (
-    0.2470,
-    0.2435,
-    0.2616,
-)
-
-
-# ============================================================
-# 8. Cấu hình huấn luyện
-# ============================================================
-
-EPOCHS = 80
-LEARNING_RATE = 0.01
-WEIGHT_DECAY = 1e-4
-
-
-# ============================================================
-# 9. Learning-rate scheduler
-# ============================================================
-
-# Giảm learning rate khi validation loss không cải thiện
-LR_FACTOR = 0.5
-LR_PATIENCE = 3
-MIN_LEARNING_RATE = 1e-6
-
-
-# ============================================================
-# 10. Early stopping
-# ============================================================
-
-# Dừng huấn luyện nếu validation loss không cải thiện
-EARLY_STOPPING_PATIENCE = 17
+CHECKPOINT_PATH = OUTPUT_DIR / "best_resnet50_catdog.pt"
+HISTORY_CSV_PATH = OUTPUT_DIR / "training_history.csv"
+LOSS_PLOT_PATH = OUTPUT_DIR / "loss_history.png"
+ACCURACY_PLOT_PATH = OUTPUT_DIR / "accuracy_history.png"
+TEST_METRICS_PATH = OUTPUT_DIR / "test_metrics.json"
+CONFUSION_MATRIX_PATH = OUTPUT_DIR / "confusion_matrix.png"

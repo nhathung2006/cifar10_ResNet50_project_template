@@ -152,7 +152,7 @@ def plot_history(history: list[dict[str, float]]) -> None:
     plt.plot(epochs, val_losses, label="Validation loss")
     plt.xlabel("Epoch")
     plt.ylabel("Loss")
-    plt.title("RESNET50 CIFAR-10 - Loss")
+    plt.title("ResNet50 Cat/Dog - Loss")
     plt.grid(True, alpha=0.3)
     plt.legend()
     plt.tight_layout()
@@ -164,7 +164,7 @@ def plot_history(history: list[dict[str, float]]) -> None:
     plt.plot(epochs, val_accuracies, label="Validation accuracy")
     plt.xlabel("Epoch")
     plt.ylabel("Accuracy (%)")
-    plt.title("VGG16 CIFAR-10 - Accuracy")
+    plt.title("ResNet50 Cat/Dog - Accuracy")
     plt.grid(True, alpha=0.3)
     plt.legend()
     plt.tight_layout()
@@ -184,7 +184,7 @@ def save_confusion_matrix(
         cmap="Blues",
         interpolation="nearest",
     )
-    plt.title("Confusion matrix - CIFAR-10")
+    plt.title("Confusion matrix - Cat/Dog")
     plt.xlabel("Predicted label")
     plt.ylabel("True label")
     plt.xticks(

@@ -58,7 +58,7 @@ def print_training_metrics(
     inference_time_seconds: float,
     peak_vram: float | None,
 ) -> None:
-    """Print the four requested metrics after training."""
+    """Print resource and runtime metrics."""
     print("\n===== THÔNG SỐ TÀI NGUYÊN =====")
     print(
         f"1. Parameters      : {total_parameters:,} "
@@ -67,3 +67,39 @@ def print_training_metrics(
     print(f"2. Training time   : {training_time_seconds:.3f} giây")
     print(f"3. Inference time  : {inference_time_seconds:.3f} giây")
     print(f"4. PEAK VRAM       : {format_vram(peak_vram)}")
+
+
+def count_macs(model: nn.Module, input_shape: tuple[int, ...]) -> int:
+    """Count multiply-accumulate operations for Conv2d and Linear layers."""
+    total = 0
+    hooks = []
+
+    def hook(layer: nn.Module, inputs: tuple[torch.Tensor, ...], output: torch.Tensor) -> None:
+        nonlocal total
+        if isinstance(layer, nn.Conv2d):
+            output_elements = output.numel()
+            total += output_elements * (layer.kernel_size[0] * layer.kernel_size[1] * (layer.in_channels // layer.groups))
+        elif isinstance(layer, nn.Linear):
+            total += output.numel() * layer.in_features
+
+    for layer in model.modules():
+        if isinstance(layer, (nn.Conv2d, nn.Linear)):
+            hooks.append(layer.register_forward_hook(hook))
+    device = next(model.parameters()).device
+    was_training = model.training
+    model.eval()
+    with torch.inference_mode():
+        model(torch.zeros(input_shape, device=device))
+    if was_training:
+        model.train()
+    for handle in hooks:
+        handle.remove()
+    return total
+
+
+def model_size_mb(model: nn.Module) -> float:
+    """Return the serialized state_dict size in MiB."""
+    import io
+    buffer = io.BytesIO()
+    torch.save(model.state_dict(), buffer)
+    return buffer.getbuffer().nbytes / (1024**2)

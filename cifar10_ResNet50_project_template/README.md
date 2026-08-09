@@ -1,102 +1,44 @@
-# Phân loại CIFAR-10 bằng ResNet-50 trên Kaggle
+# ResNet50 Cat/Dog trên Kaggle
 
-Project này chỉ chạy trên Kaggle, sử dụng ResNet-50 cho ảnh CIFAR-10 `32 x 32`. Không tải CIFAR-10 từ Internet; tất cả dataset đều được đọc với `download=False`.
+Project phân loại ảnh mèo và chó bằng ResNet50 torchvision, huấn luyện từ đầu và không dùng pretrained weights.
 
-## 1. Add Input
+## Dataset
 
-Trong Kaggle Notebook, chọn **Add Input** cho dataset:
-
-```text
-cifar-10 python dataset của Alif Rahman
-```
-
-Dataset phải có thư mục:
+Trong Kaggle chọn **Add Input** dataset Cat and Dog. Project ưu tiên `/kaggle/input/cat-and-dog/` và tự tìm các thư mục trực tiếp chứa `cats/` và `dogs/`, kể cả cấu trúc:
 
 ```text
-/kaggle/input/cifar10-python-dataset/cifar-10-batches-py/
-├── batches.meta
-├── data_batch_1
-├── data_batch_2
-├── data_batch_3
-├── data_batch_4
-├── data_batch_5
-└── test_batch
+training_set/training_set/cats
+training_set/training_set/dogs
+test_set/test_set/cats
+test_set/test_set/dogs
 ```
 
-Nếu thư mục này không tồn tại, project dừng với thông báo yêu cầu Add Input dataset trên.
+Training set được chia stratified 90% train và 10% validation với seed 42. Toàn bộ test set được giữ độc lập. Split là `catdog_seed42_val10.npz`; script không ghi đè file đã tồn tại.
 
-## 2. Copy project sang working
-
-`/kaggle/input` là read-only. Copy project sang `/kaggle/working` trước khi tạo split hoặc chạy train:
-
-```python
-!cp -r /kaggle/input/<project-dataset>/cifar10_ResNet50_project_template /kaggle/working/
-%cd /kaggle/working/cifar10_ResNet50_project_template
-```
-
-Thay `<project-dataset>` bằng tên dataset chứa project đã upload.
-
-## 3. Tạo fixed split
-
-Chạy một lần trong thư mục project tại `/kaggle/working`:
+## Chạy trên Kaggle
 
 ```python
 !python create_fixed_split.py
-```
-
-Script đọc 50.000 ảnh train bằng `train=True`, chia stratified với `SEED = 42` thành:
-
-- 45.000 ảnh train, 4.500 ảnh mỗi lớp.
-- 5.000 ảnh validation, 500 ảnh mỗi lớp.
-
-Script kiểm tra index không trùng, không thiếu và không ngoài phạm vi, sau đó lưu:
-
-```text
-splits/cifar10_seed42_val10.npz
-```
-
-File đã tồn tại sẽ không bị ghi đè.
-
-## 4. Upload split dùng chung
-
-Upload file sau thành Kaggle Dataset có tên:
-
-```text
-cifar10-fixed-split-v1
-```
-
-```text
-splits/cifar10_seed42_val10.npz
-```
-
-Các project model khác cần **Add Input** dataset `cifar10-fixed-split-v1`. Project sẽ ưu tiên đọc:
-
-```text
-/kaggle/input/cifar10-fixed-split-v1/cifar10_seed42_val10.npz
-```
-
-Nếu chưa Add Input split dataset, project dùng file local trong `splits/` của bản copy tại `/kaggle/working`.
-
-## 5. Chạy project
-
-```python
+!python model.py
+!python -m unittest discover -s tests -v
 !python train.py
 !python evaluate.py
 ```
 
-Tập train dùng augmentation. Validation và test chỉ dùng `ToTensor` và Normalize CIFAR-10. Test dùng `train=False`, có 10.000 ảnh và `shuffle=False`.
-
-Không chạy huấn luyện nếu chỉ cần tạo fixed split. Checkpoint ResNet-50 giữ nguyên tên đã cấu hình trong `config.py` và tất cả output được ghi vào `/kaggle/working/.../outputs`.
-
-Sau khi `train.py` hoàn tất, phần `THÔNG SỐ TÀI NGUYÊN` in ra:
-
-- Tổng Parameters và số trainable Parameters.
-- Tổng thời gian huấn luyện.
-- Tổng thời gian suy luận trên tập test.
-- PEAK VRAM đã cấp phát bởi PyTorch; CPU/MPS sẽ hiển thị `N/A`.
-
-Các giá trị này cũng được lưu trong `outputs/test_metrics.json`. Có thể chạy bài test kiểm tra model và phần in thông số bằng:
+Ví dụ dự đoán:
 
 ```python
-!python -m unittest discover -s tests -v
+!python predict.py --image /kaggle/working/example.jpg --top-k 2
 ```
+
+Xuất ảnh dự đoán nhầm:
+
+```python
+!python export_confusion_examples.py
+```
+
+Model nhận input `N x 3 x 160 x 160` và trả về 2 logits: `0 = cats`, `1 = dogs`. Validation, test và prediction dùng resize 176, center crop 160, không augmentation. Model giữ nguyên stem chuẩn ResNet50 (7x7 stride 2 và maxpool 3x3 stride 2).
+
+## Output
+
+Kaggle lưu tại `/kaggle/working/catdog_resnet50_outputs/`; local lưu tại `outputs/`. Bao gồm checkpoint `best_resnet50_catdog.pt`, history, biểu đồ, metrics và confusion matrix. Metrics có parameters, thời gian train/inference, peak VRAM, MACs, FLOPs (`2 x MACs`) và kích thước state_dict. Hãy Save Version hoặc tải checkpoint trước khi kết thúc Kaggle session.

@@ -6,13 +6,13 @@ from PIL import Image
 
 from config import CHECKPOINT_PATH, CLASS_NAMES, NUM_CLASSES
 from data import get_prediction_transform
-from model import RESNET50CIFAR10
+from model import ResNet50CatDog
 from utils import get_device, load_checkpoint
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Dự đoán một ảnh bằng RESNET50 CIFAR-10."
+        description="Dự đoán ảnh mèo hoặc chó bằng ResNet50."
     )
     parser.add_argument(
         "--image",
@@ -23,7 +23,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--top-k",
         type=int,
-        default=3,
+        default=2,
         help="Số kết quả có xác suất cao nhất cần hiển thị.",
     )
     return parser.parse_args()
@@ -38,7 +38,7 @@ def predict(image_path: Path, top_k: int) -> None:
 
     device = get_device()
 
-    model = RESNET50CIFAR10(
+    model = ResNet50CatDog(
         num_classes=NUM_CLASSES,
     ).to(device)
     load_checkpoint(
