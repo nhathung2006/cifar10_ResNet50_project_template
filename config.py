@@ -46,7 +46,15 @@ def _find_split_dir(root: Path, split_name: str) -> Path | None:
     if _contains_classes(preferred):
         return preferred
     candidates = sorted(
-        (path for path in root.rglob("*") if path.is_dir() and _contains_classes(path)),
+        (
+            path
+            for path in root.rglob("*")
+            if (
+                path.is_dir()
+                and split_name in path.parts
+                and _contains_classes(path)
+            )
+        ),
         key=lambda path: (len(path.parts), str(path)),
     )
     return candidates[0] if candidates else None
@@ -64,6 +72,11 @@ def find_dataset_dirs() -> tuple[Path | None, Path | None]:
         train_dir = _find_split_dir(root, "training_set")
         test_dir = _find_split_dir(root, "test_set")
         if train_dir is not None and test_dir is not None:
+            if train_dir.resolve() == test_dir.resolve():
+                raise ValueError(
+                    "Training dataset và test dataset đang trỏ tới cùng một thư mục: "
+                    f"{train_dir.resolve()}"
+                )
             return train_dir, test_dir
     return None, None
 
