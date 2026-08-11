@@ -2,7 +2,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from config import _find_split_dir
+from config import MIN_EARLY_STOPPING_EPOCH, _find_split_dir
+from train import should_stop_early
 
 
 class DatasetLookupTest(unittest.TestCase):
@@ -21,6 +22,12 @@ class DatasetLookupTest(unittest.TestCase):
             self.assertEqual(found_train_dir, train_dir)
             self.assertEqual(found_test_dir, test_dir)
             self.assertNotEqual(found_train_dir, found_test_dir)
+
+    def test_early_stopping_cannot_trigger_before_epoch_110(self) -> None:
+        self.assertEqual(MIN_EARLY_STOPPING_EPOCH, 110)
+        self.assertFalse(should_stop_early(109, 10_000))
+        self.assertTrue(should_stop_early(110, 25))
+        self.assertFalse(should_stop_early(110, 24))
 
 
 if __name__ == "__main__":

@@ -11,6 +11,13 @@ from model import ResNet50CatDog
 from utils import ensure_directories, get_device, load_checkpoint, plot_history, save_checkpoint, save_history_csv, save_json, set_seed
 
 
+def should_stop_early(epoch: int, epochs_without_improvement: int) -> bool:
+    return (
+        epoch >= MIN_EARLY_STOPPING_EPOCH
+        and epochs_without_improvement >= EARLY_STOPPING_PATIENCE
+    )
+
+
 def main() -> None:
     ensure_directories()
     set_seed(SEED)
@@ -45,7 +52,7 @@ def main() -> None:
         else:
             epochs_without_improvement += 1
             print(f"  -> Validation loss chưa cải thiện {epochs_without_improvement}/{EARLY_STOPPING_PATIENCE} epoch.")
-            if epochs_without_improvement >= EARLY_STOPPING_PATIENCE:
+            if should_stop_early(epoch, epochs_without_improvement):
                 print("Dừng sớm để hạn chế overfitting.")
                 break
     training_time_seconds = stop_timer(training_start, device)

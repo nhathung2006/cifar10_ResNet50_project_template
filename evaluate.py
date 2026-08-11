@@ -1,5 +1,6 @@
 import json
 
+import torch
 from torch import nn
 
 from config import CHECKPOINT_PATH, CLASS_NAMES, IMAGE_SIZE, NUM_CLASSES, TEST_METRICS_PATH
@@ -21,9 +22,14 @@ def main() -> None:
     checkpoint = load_checkpoint(CHECKPOINT_PATH, model, device)
     reset_peak_vram(device)
     criterion = nn.CrossEntropyLoss()
-    start = start_timer(device)
     test_loss, test_accuracy, confusion_matrix, class_correct, class_total = evaluate_detailed(model, test_loader, criterion, device, NUM_CLASSES)
-    inference_time = stop_timer(start, device)
+    second_image, _ = test_loader.dataset[1]
+    second_image = second_image.unsqueeze(0).to(device, non_blocking=device.type == "cuda")
+    model.eval()
+    with torch.inference_mode():
+        start = start_timer(device)
+        model(second_image)
+        inference_time = stop_timer(start, device)
     vram = peak_vram_mb(device)
     previous_metrics = {}
     if TEST_METRICS_PATH.is_file():
